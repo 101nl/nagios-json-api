@@ -8,3 +8,9 @@ There are no command-line options or other configuration options yet, so if the 
 
 There is more to come soon, please let me know what you think.
 And drop me some ideas ;-)
+
+Run with: `node nagios-json-status.js`
+Access the JSON via http://[host]:6244/[nagios-host]
+
+For example:
+GET http://localhost:6244/my-webserver
