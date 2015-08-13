@@ -12,6 +12,6 @@ And drop me some ideas ;-)
 Run with: `node nagios-json-status.js`
 Access the JSON via http://[host]:6244/[nagios-host]
 
-For example:
+Example:
 
 `GET http://localhost:6244/my-webserver`
