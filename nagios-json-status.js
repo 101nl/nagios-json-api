@@ -12,11 +12,13 @@ function StatusReader() {
     }
 
     this.parseFileContents = function(contents) {
-        var file = {};
+        var nagiosStatus = {};
+
         var nagiosServices = {};
         var nagiosInfo = {};
         var nagiosProgramStatus = {};
         var nagiosHosts = {};
+        var nagiosContacts = {};
 
         var lines = contents.split("\n");
         // console.log(lines);return;
@@ -29,8 +31,8 @@ function StatusReader() {
 
             if (line.substr(0, 1) != "\t" && line.substr(line.length - 1, line.length) == '{') {
 
-                // Save services per host
                 if (line.substr(0, 13) == 'servicestatus') {
+                    // Save services per host
 
                     var service = {};
                     var hostname = lines[i + 1].split('=')[1];
@@ -57,8 +59,7 @@ function StatusReader() {
                     nagiosServices[hostname].push(serviceContent);
 
                 } else if (line.substr(0, 13) == 'programstatus') {
-
-                    var programStatus = {};
+                    // Save programstatus
 
                     i++;
                     while ((line = lines[i]) !== "\t}") {
@@ -68,12 +69,58 @@ function StatusReader() {
                         i++;
                     }
 
+                } else if (line.substr(0, 10) == 'hoststatus') {
+                    // Save hoststatus
+                    var hostname = lines[i + 1].split('=')[1];
+
+                    if (nagiosHosts[hostname] === undefined) {
+                        nagiosHosts[hostname] = {};
+                    }
+
+                    i++;
+                    while ((line = lines[i]) !== "\t}") {
+                        var arr = line.substr(1, line.length).split('=');
+                        nagiosHosts[hostname][arr[0]] = arr[1];
+
+                        i++;
+                    }
+                } else if (line.substr(0, 13) == 'contactstatus') {
+                    // Save contactstatus
+                    var contactName = lines[i + 1].split('=')[1];
+
+                    if (nagiosContacts[contactName] === undefined) {
+                        nagiosContacts[contactName] = {};
+                    }
+
+                    i++;
+                    while ((line = lines[i]) !== "\t}") {
+                        var arr = line.substr(1, line.length).split('=');
+                        nagiosContacts[contactName][arr[0]] = arr[1];
+
+                        i++;
+                    }
+                } else if (line.substr(0, 4) == 'info') {
+                    // Save nagios info
+                    i++;
+                    while ((line = lines[i]) !== "\t}") {
+                        var arr = line.substr(1, line.length).split('=');
+                        nagiosInfo[arr[0]] = arr[1];
+
+                        i++;
+                    }
                 }
 
             }
         }
 
-        return nagiosServices;
+        // Combine
+        nagiosStatus['services'] = nagiosServices;
+        nagiosStatus['programStatus'] = nagiosProgramStatus;
+        nagiosStatus['hosts'] = nagiosHosts;
+        nagiosStatus['contacts'] = nagiosContacts;
+        nagiosStatus['info'] = nagiosInfo;
+
+        return nagiosStatus;
     }
 
 }
@@ -81,10 +128,10 @@ function StatusReader() {
 // Read status from Nagios
 
 var statusReader = new StatusReader();
-var hosts = statusReader.parseFileContents(statusReader.getFileContents());
+var nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
 
 setInterval(function() {
-    hosts = statusReader.parseFileContents(statusReader.getFileContents());
+    nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
 }, 10000);
 
 // Create simple webserver
@@ -95,7 +142,7 @@ http.createServer(function(req, res) {
         res.end('Not found\n');
     }
 
-    var nagiosHost = hosts[req.url.substr(1, req.url.length)];
+    var nagiosHost = nagiosStatus['services'][req.url.substr(1, req.url.length)];
     if (nagiosHost !== undefined) {
         res.writeHead(200, { "Content-type": "application/json" })
         res.end(JSON.stringify(nagiosHost));
