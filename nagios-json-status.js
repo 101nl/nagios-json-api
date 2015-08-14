@@ -125,8 +125,7 @@ function StatusReader() {
 
 }
 
-// Read status from Nagios
-
+// *** Main ***
 var statusReader = new StatusReader();
 var nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
 
@@ -137,18 +136,59 @@ setInterval(function() {
 // Create simple webserver
 var http = require('http');
 http.createServer(function(req, res) {
+
+    var url = req.url.substr(1, req.url.length).split('/');
+    var data = null;
+
     if (req.url == '/') {
         res.writeHead(404);
         res.end('Not found\n');
     }
 
-    var nagiosHost = nagiosStatus['services'][req.url.substr(1, req.url.length)];
-    if (nagiosHost !== undefined) {
-        res.writeHead(200, { "Content-type": "application/json" })
-        res.end(JSON.stringify(nagiosHost));
-    } else {
-        res.writeHead(404);
-        res.end('Not found\n');
+    try {
+        switch (url[0]) {
+            case 'services':
+                if (url[1] !== undefined && nagiosStatus['services'][url[1]] !== undefined) {
+                    data = nagiosStatus['services'][url[1]];
+                } else {
+                    throw new Error(404);
+                }
+                break;
+            case 'host':
+                if (url[1] !== undefined && nagiosStatus['hosts'][url[1]] !== undefined) {
+                    data = nagiosStatus['hosts'][url[1]];
+                } else {
+                    throw new Error(404);
+                }
+                break;
+            case 'contact':
+                if (url[1] !== undefined && nagiosStatus['contacts'][url[1]] !== undefined) {
+                    data = nagiosStatus['contacts'][url[1]];
+                } else {
+                    throw new Error(404);
+                }
+                break;
+            case 'programStatus':
+                data = nagiosStatus['programStatus'];
+                break;
+            case 'info':
+                data = nagiosStatus['info'];
+                break;
+            case 'all':
+                data = nagiosStatus;
+                break;
+        }
+    } catch (err) {
+        res.writeHead(err.message);
+        res.end('Not found');
+        return;
     }
+
+    if (data !== null) {
+        res.writeHead(200, { "Content-type": "application/json" });
+        res.end(JSON.stringify(data));
+    }
+
+    return;
 
 }).listen(6244);
