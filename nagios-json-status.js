@@ -1,10 +1,9 @@
 'use strict';
 
-function StatusReader() {
+function StatusReader(nagiosStatusLocation) {
 
     var self = this;
     var fs = require('fs');
-    var nagiosStatusLocation = '/usr/local/nagios/var/status.dat';
 
     this.getFileContents = function() {
         var buffer = fs.readFileSync(nagiosStatusLocation);
@@ -126,12 +125,36 @@ function StatusReader() {
 }
 
 // *** Main ***
-var statusReader = new StatusReader();
-var nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
+
+var statusFileLocation = '/usr/local/nagios/var/status.dat';
+var refreshTimeout = 10000;
+
+// Command line args
+var program = require('commander');
+program.version('0.1');
+program.option('-f, --file [file]', 'Location of status.dat (default: "/usr/local/nagios/var/status.dat")');
+program.option('-r, --refresh-rate [refreshRate]', 'Refresh-rate in ms');
+program.parse(process.argv);
+
+if (program.refreshRate) {
+    refreshTimeout = program.refreshRate;
+}
+if (program.file) {
+    statusFileLocation = program.file;
+}
+
+// Read status
+try {
+    var statusReader = new StatusReader(statusFileLocation);
+    var nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
+} catch (err) {
+    console.log(err.message);
+    return;
+}
 
 setInterval(function() {
     nagiosStatus = statusReader.parseFileContents(statusReader.getFileContents());
-}, 10000);
+}, refreshTimeout);
 
 // Create simple webserver
 var http = require('http');
@@ -192,3 +215,5 @@ http.createServer(function(req, res) {
     return;
 
 }).listen(6244);
+
+console.log("Server running..");
