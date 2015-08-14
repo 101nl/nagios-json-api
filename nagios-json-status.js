@@ -12,7 +12,11 @@ function StatusReader() {
     }
 
     this.parseFileContents = function(contents) {
-        var hosts = {};
+        var file = {};
+        var nagiosServices = {};
+        var nagiosInfo = {};
+        var nagiosProgramStatus = {};
+        var nagiosHosts = {};
 
         var lines = contents.split("\n");
         // console.log(lines);return;
@@ -23,35 +27,53 @@ function StatusReader() {
             if (line == '') continue;
             if (line.substr(0, 1) == '#') continue;
 
-            if (line.substr(0, 1) != "\t" && line.substr(line.length - 1, line.length) == '{' && line.substr(0, 13) == 'servicestatus') {
+            if (line.substr(0, 1) != "\t" && line.substr(line.length - 1, line.length) == '{') {
 
-                var service = {};
-                var hostname = lines[i + 1].split('=')[1];
+                // Save services per host
+                if (line.substr(0, 13) == 'servicestatus') {
 
-                if (hosts[hostname] === undefined) {
-                    hosts[hostname] = [];
-                }
+                    var service = {};
+                    var hostname = lines[i + 1].split('=')[1];
 
-                var line = '';
-                var serviceContent = {};
-                i++;
-                while ((line = lines[i]) !== "\t}") {
-                    line = lines[i];
-
-                    var arr = line.substr(1, line.length).split('=');
-                    if (arr[0] != 'host_name') {
-                        serviceContent[arr[0]] = arr[1];
+                    if (nagiosServices[hostname] === undefined) {
+                        nagiosServices[hostname] = [];
                     }
 
-                    i++;
-                }
+                    var line = '';
+                    var serviceContent = {};
 
-                hosts[hostname].push(serviceContent);
+                    i++;
+                    while ((line = lines[i]) !== "\t}") {
+                        // line = lines[i];
+
+                        var arr = line.substr(1, line.length).split('=');
+                        if (arr[0] != 'host_name') {
+                            serviceContent[arr[0]] = arr[1];
+                        }
+
+                        i++;
+                    }
+
+                    nagiosServices[hostname].push(serviceContent);
+
+                } else if (line.substr(0, 13) == 'programstatus') {
+
+                    var programStatus = {};
+
+                    i++;
+                    while ((line = lines[i]) !== "\t}") {
+                        var arr = line.substr(1, line.length).split('=');
+                        nagiosProgramStatus[arr[0]] = arr[1];
+
+                        i++;
+                    }
+
+                }
 
             }
         }
 
-        return hosts;
+        return nagiosServices;
     }
 
 }
